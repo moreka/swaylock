@@ -544,8 +544,8 @@ static int parse_options(int argc, char **argv, struct swaylock_state *state,
 		{"text-ver-color", required_argument, NULL, LO_TEXT_VER_COLOR},
 		{"text-wrong-color", required_argument, NULL, LO_TEXT_WRONG_COLOR},
 		{"clock", no_argument, NULL, LO_CLOCK},
-		{"timestr", no_argument, NULL, LO_CLOCK},
-		{"timestr", no_argument, NULL, LO_CLOCK},
+		{"timestr", no_argument, NULL, LO_TIMESTR},
+		{"datestr", no_argument, NULL, LO_DATESTR},
 		{0, 0, 0, 0}
 	};
 
