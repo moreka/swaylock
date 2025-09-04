@@ -69,6 +69,9 @@ struct swaylock_args {
 	bool daemonize;
 	int ready_fd;
 	bool indicator_idle_visible;
+	bool clock;
+	char *timestr;
+	char *datestr;
 };
 
 struct swaylock_password {
@@ -94,6 +97,7 @@ struct swaylock_state {
 	cairo_surface_t *test_surface;
 	cairo_t *test_cairo; // used to estimate font/text sizes
 	enum auth_state auth_state; // state of the authentication attempt
+	int render_randnum;
 	enum input_state input_state; // state of the password buffer and key inputs
 	uint32_t highlight_start; // position of highlight; 2048 = 1 full turn
 	int failed_attempts;

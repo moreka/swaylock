@@ -159,7 +159,6 @@ void swaylock_handle_key(struct swaylock_state *state,
 			}
 		}
 		schedule_input_idle(state);
-		damage_state(state);
 		break;
 	case XKB_KEY_Escape:
 		clear_password_buffer(&state->password);

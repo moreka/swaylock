@@ -483,6 +483,9 @@ static int parse_options(int argc, char **argv, struct swaylock_state *state,
 		LO_TEXT_CAPS_LOCK_COLOR,
 		LO_TEXT_VER_COLOR,
 		LO_TEXT_WRONG_COLOR,
+		LO_CLOCK,
+		LO_TIMESTR,
+		LO_DATESTR,
 	};
 
 	static struct option long_options[] = {
@@ -540,6 +543,9 @@ static int parse_options(int argc, char **argv, struct swaylock_state *state,
 		{"text-caps-lock-color", required_argument, NULL, LO_TEXT_CAPS_LOCK_COLOR},
 		{"text-ver-color", required_argument, NULL, LO_TEXT_VER_COLOR},
 		{"text-wrong-color", required_argument, NULL, LO_TEXT_WRONG_COLOR},
+		{"clock", no_argument, NULL, LO_CLOCK},
+		{"timestr", no_argument, NULL, LO_CLOCK},
+		{"timestr", no_argument, NULL, LO_CLOCK},
 		{0, 0, 0, 0}
 	};
 
@@ -662,6 +668,12 @@ static int parse_options(int argc, char **argv, struct swaylock_state *state,
 			"Sets the color of the text when verifying.\n"
 		"  --text-wrong-color <color>       "
 			"Sets the color of the text when invalid.\n"
+		"  --clock                          "
+			"Show time and date.\n"
+		"  --timestr                        "
+			"The format string for the time. Defaults to '%X'.\n"
+		"  --datestr                        "
+			"The format string for the date. Defaults to '%a, %x'.\n"
 		"\n"
 		"All <color> options are of the form <rrggbb[aa]>.\n";
 
@@ -943,6 +955,23 @@ static int parse_options(int argc, char **argv, struct swaylock_state *state,
 				state->args.colors.text.wrong = parse_color(optarg);
 			}
 			break;
+		case LO_CLOCK:
+			if (state) {
+				state->args.clock = true;
+			}
+			break;
+		case LO_TIMESTR:
+			if (state) {
+				free(state->args.timestr);
+				state->args.timestr = strdup(optarg);
+			}
+			break;
+		case LO_DATESTR:
+			if (state) {
+				free(state->args.datestr);
+				state->args.datestr = strdup(optarg);
+			}
+			break;
 		default:
 			fprintf(stderr, "%s", usage);
 			return 1;
@@ -1087,6 +1116,12 @@ void log_init(int argc, char **argv) {
 	swaylock_log_init(LOG_ERROR);
 }
 
+static void timer_render(void *data) {
+	struct swaylock_state *state = (struct swaylock_state *)data;
+	damage_state(state);
+	loop_add_timer(state->eventloop, 1000, timer_render, state);
+}
+
 int main(int argc, char **argv) {
 	log_init(argc, argv);
 	initialize_pw_backend(argc, argv);
@@ -1098,7 +1133,7 @@ int main(int argc, char **argv) {
 		.mode = BACKGROUND_MODE_FILL,
 		.font = strdup("sans-serif"),
 		.font_size = 0,
-		.radius = 50,
+		.radius = 75,
 		.thickness = 10,
 		.indicator_x_position = 0,
 		.indicator_y_position = 0,
@@ -1113,6 +1148,9 @@ int main(int argc, char **argv) {
 		.show_failed_attempts = false,
 		.indicator_idle_visible = false,
 		.ready_fd = -1,
+		.clock = false,
+		.timestr = strdup("%X"),
+		.datestr = strdup("%a, %x"),
 	};
 	wl_list_init(&state.images);
 	set_default_colors(&state.args.colors);
@@ -1250,6 +1288,8 @@ int main(int argc, char **argv) {
 	loop_add_fd(state.eventloop, get_comm_reply_fd(), POLLIN, comm_in, NULL);
 
 	loop_add_fd(state.eventloop, sigusr_fds[0], POLLIN, term_in, NULL);
+
+	loop_add_timer(state.eventloop, 1000, timer_render, &state);
 
 	struct sigaction sa;
 	sa.sa_handler = do_sigusr;

@@ -47,6 +47,28 @@ static const struct wl_callback_listener surface_frame_listener = {
 	.done = surface_frame_handle_done,
 };
 
+static void timetext(struct swaylock_surface *surface, char **tstr, char **dstr) {
+	static char dbuf[256];
+	static char tbuf[256];
+
+	time_t t = time(NULL);
+	struct tm *tm = localtime(&t);
+
+	if (surface->state->args.timestr[0]) {
+		strftime(tbuf, sizeof(tbuf), surface->state->args.timestr, tm);
+		*tstr = tbuf;
+	} else {
+		*tstr = NULL;
+	}
+
+	if (surface->state->args.datestr[0]) {
+		strftime(dbuf, sizeof(dbuf), surface->state->args.datestr, tm);
+		*dstr = dbuf;
+	} else {
+		*dstr = NULL;
+	}
+}
+
 static bool render_frame(struct swaylock_surface *surface);
 
 void render(struct swaylock_surface *surface) {
@@ -137,6 +159,8 @@ static bool render_frame(struct swaylock_surface *surface) {
 
 	char attempts[4]; // like i3lock: count no more than 999
 	char *text = NULL;
+	char *text_l1 = NULL;
+	char *text_l2 = NULL;
 	const char *layout_text = NULL;
 
 	bool draw_indicator = state->args.show_indicator &&
@@ -164,6 +188,12 @@ static bool render_frame(struct swaylock_surface *surface) {
 					snprintf(attempts, sizeof(attempts), "%d", state->failed_attempts);
 					text = attempts;
 				}
+			} else if (state->args.clock) {
+				timetext(surface, &text_l1, &text_l2);
+				if (text_l1 && !text_l2)
+					text = text_l1;
+				if (text_l2 && !text_l1)
+					text = text_l2;
 			}
 
 			if (state->xkb.keymap) {
@@ -192,7 +222,7 @@ static bool render_frame(struct swaylock_surface *surface) {
 	int buffer_width = buffer_diameter;
 	int buffer_height = buffer_diameter;
 
-	if (text || layout_text) {
+	if (text || layout_text || (text_l1 && text_l2)) {
 		cairo_set_antialias(state->test_cairo, CAIRO_ANTIALIAS_BEST);
 		configure_font_drawing(state->test_cairo, state, surface->subpixel, arc_radius);
 
@@ -201,6 +231,18 @@ static bool render_frame(struct swaylock_surface *surface) {
 			cairo_text_extents(state->test_cairo, text, &extents);
 			if (buffer_width < extents.width) {
 				buffer_width = extents.width;
+			}
+		} else if (text_l1 && text_l2) {
+			cairo_text_extents_t extents_l1, extents_l2;
+			cairo_text_extents(state->test_cairo, text_l1, &extents_l1);
+			cairo_set_font_size(state->test_cairo, arc_radius / 6.0f);
+			cairo_text_extents(state->test_cairo, text_l2, &extents_l2);
+			configure_font_drawing(state->test_cairo, state, surface->subpixel, arc_radius);
+			if (buffer_width < extents_l1.width) {
+				buffer_width = extents_l1.width;
+			}
+			if (buffer_width < extents_l2.width) {
+				buffer_width = extents_l2.width;
 			}
 		}
 		if (layout_text) {
@@ -294,6 +336,41 @@ static bool render_frame(struct swaylock_surface *surface) {
 			cairo_show_text(cairo, text);
 			cairo_close_path(cairo);
 			cairo_new_sub_path(cairo);
+		} else if (text_l1 && text_l2) {
+			cairo_text_extents_t extents_l1, extents_l2;
+			cairo_font_extents_t fe_l1, fe_l2;
+			double x_l1, y_l1, x_l2, y_l2;
+
+			/* Top */
+
+			cairo_text_extents(cairo, text_l1, &extents_l1);
+			cairo_font_extents(cairo, &fe_l1);
+			x_l1 = ((double)buffer_width / 2) -
+				(extents_l1.width / 2 + extents_l1.x_bearing);
+			y_l1 = ((double)buffer_diameter / 2) +
+				(fe_l1.height / 2 - fe_l1.descent) - arc_radius / 10.0f;
+
+			cairo_move_to(cairo, x_l1, y_l1);
+			cairo_show_text(cairo, text_l1);
+			cairo_close_path(cairo);
+			cairo_new_sub_path(cairo);
+
+			/* Bottom */
+
+			cairo_set_font_size(cairo, arc_radius / 6.0f);
+			cairo_text_extents(cairo, text_l2, &extents_l2);
+			cairo_font_extents(cairo, &fe_l2);
+			x_l2 = ((double)buffer_width / 2) -
+				(extents_l2.width / 2 + extents_l2.x_bearing);
+			y_l2 = ((double)buffer_diameter / 2) +
+				(fe_l2.height / 2 - fe_l2.descent) + arc_radius / 3.5f;
+
+			cairo_move_to(cairo, x_l2, y_l2);
+			cairo_show_text(cairo, text_l2);
+			cairo_close_path(cairo);
+			cairo_new_sub_path(cairo);
+
+			configure_font_drawing(cairo, state, surface->subpixel, arc_radius);
 		}
 
 		// Typing indicator: Highlight random part on keypress
