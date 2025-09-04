@@ -196,6 +196,15 @@ Locks your Wayland session.
 *--text-wrong-color* <rrggbb[aa]>
 	Sets the color of the text when invalid.
 
+*--clock*
+	Show time and date.
+
+*--timestr* <timestr>
+	The format string for the time. Defaults to '%X'.
+
+*--datestr* <datestr>
+	The format string for the date. Defaults to '%a, %x'.
+
 # SIGNALS
 
 *SIGUSR1*
